@@ -10,7 +10,7 @@ endif
 all: eggs $(ROOTFS) check_convention
 
 check_convention:
-	pep8 py --max-line-length=109
+	pep8 py --max-line-length=150
 
 submit:
 	sudo -E solvent submitproduct rootfs $(ROOTFS)
@@ -43,6 +43,9 @@ $(ROOTFS): build/smartctl
 	sudo cp ../inaugurator/dist/inaugurator-1.0-py2.7.egg $(ROOTFS).tmp/tmp
 	sudo chroot $(ROOTFS).tmp easy_install /tmp/inaugurator-1.0-py2.7.egg
 	sudo chroot $(ROOTFS).tmp yum install --assumeyes $(YUMCACHE)/mirrors.kernel.org/fedora-epel/7/x86_64/m/msr-tools-1.3-1.el7.x86_64.rpm
+	sudo chroot $(ROOTFS).tmp yum install --assumeyes $(YUMCACHE)/mirrors.kernel.org/fedora-epel/7/x86_64/v/vconfig-1.9-16.el7.x86_64.rpm
+	sudo chroot $(ROOTFS).tmp pip install rpdb
+	sudo chroot $(ROOTFS).tmp pip install ipaddr
 	sudo cp $< $(ROOTFS).tmp/usr/sbin/
 	sudo rm -fr $(ROOTFS).tmp/tmp/*
 	sudo mv $(ROOTFS).tmp $(ROOTFS)
@@ -69,5 +72,7 @@ RPMS_TO_INSTALL = \
 	strace \
 	zip \
 	tcpdump \
-	unzip
+	unzip \
+	pciutils \
+	nmap-ncat
 
