@@ -41,6 +41,8 @@ $(ROOTFS): build/smartctl
 	sudo chroot $(ROOTFS).tmp yum install --assumeyes $(YUMCACHE)/mirrors.kernel.org/fedora-epel/7/x86_64/v/vconfig-1.9-16.el7.x86_64.rpm
 	sudo chroot $(ROOTFS).tmp pip install rpdb
 	sudo chroot $(ROOTFS).tmp pip install ipaddr
+	sudo sh -c "echo 'MaxSessions 300' >> $(ROOTFS).tmp/etc/ssh/sshd_config"
+	sudo sh -c "echo 'UseDNS no' >> $(ROOTFS).tmp/etc/ssh/sshd_config"
 	sudo cp $< $(ROOTFS).tmp/usr/sbin/
 	sudo rm -fr $(ROOTFS).tmp/tmp/*
 	sudo mv $(ROOTFS).tmp $(ROOTFS)
