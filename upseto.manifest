@@ -1,5 +1,9 @@
 requirements:
-- hash: e55359271d8f71f63f7c2cfa08f4ccf2ba0cbd99
+- hash: d5f7438c25437f8635d9485440f9db0516a3a10f
+  originURL: https://github.com/Stratoscale/pyracktest.git
+- hash: ba5959a1a357fbe60db0e46cc4c5808b7ead97cf
+  originURL: https://github.com/Stratoscale/pycommonmultithreading.git
+- hash: 6e98ac3fe49514e5c0b3255602721308f7dfe1f1
   originURL: https://github.com/Stratoscale/rackattack-physical.git
 - hash: 389d66d1af1b7ee78000201b8b7c0defa66dbf6b
   originURL: https://github.com/Stratoscale/inaugurator.git
