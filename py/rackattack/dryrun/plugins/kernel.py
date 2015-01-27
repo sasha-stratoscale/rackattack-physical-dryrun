@@ -2,6 +2,7 @@ from strato.racktest.hostundertest import plugins
 from rackattack.dryrun.seeds import cpuinfo
 from rackattack.dryrun.lib import cpuinfo as libcpuinfo
 from strato.common.multithreading import waittonotthrow
+import logging
 
 
 class Kernel:
@@ -39,6 +40,13 @@ class Kernel:
     def isModuleLoaded(self, module):
         output = self._host.ssh.run.script("lsmod")
         return module in output.split()
+
+    def _logDmesgOnModuleLoadFailure(self, moduleName):
+        # We assume that if we fail here it is because of some module dependencies, lets log last lines from dmesg
+        try:
+            logging.error('Failed to modprobe module %(module)s dmesg: %(dmesg)s', dict(module=moduleName, dmesg=self.dmesg(30)))
+        except:
+            pass  # If fail on dmesg, ignore nothing we can do about it
 
 
 plugins.register('kernel', Kernel)
