@@ -7,7 +7,7 @@ else
   Q = @
 endif
 
-all: eggs $(ROOTFS) check_convention
+all: $(ROOTFS) check_convention
 
 check_convention:
 	pep8 py --max-line-length=150
@@ -22,14 +22,9 @@ approve:
 	sudo -E solvent approve --product=rootfs
 
 clean:
-	sudo rm -fr build
-
-eggs: build/master.egg
-
-build/master.egg:
-	$(Q)mkdir -p build
-	PYTHONPATH=py UPSETO_JOIN_PYTHON_NAMESPACES=yes python -m upseto.packegg --entryPoint=py/rackattack/dryrun/master/main.py --output=$@ --createDeps=$@.deps --takeSitePackages --joinPythonNamespaces
--include build/master.egg.deps
+	@sudo rm -fr build
+	@find -name "*.pyc" -delete
+	
 
 $(ROOTFS): build/smartctl
 	-sudo mv $(ROOTFS) $(ROOTFS).tmp
