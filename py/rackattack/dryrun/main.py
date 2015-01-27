@@ -83,13 +83,33 @@ def printHostsThatFailedInnaguration(failedHosts):
 
 
 def _initializeFastNetworkOnHost(hostToInitialize, vtags, testResult):
+    logging.info("Init Fast network in host %(host)s", dict(host=hostToInitialize.name))
     try:
-        logging.info("Init Fast network in host %(host)s", dict(host=hostToInitialize.name))
+        hostToInitialize.network.initialize()
+    except:
+        logging.exception("Failed to initialize network")
+        pciIdCard = hostToInitialize.network.mellanoxPCIId()
+        ethtoolResult = hostToInitialize.network.ethtool()
+        lspciOutput = hostToInitialize.ssh.run.script("lspci")
+        lsmodOutput = hostToInitialize.ssh.run.script("lsmod")
+        if pciIdCard is None:
+            testResult.addCheck('net', 'init fast net', False, "Mellanox Card is not identified lspci %(lspci)s lsmod %(lsmod)s"
+                                % dict(lspci=lspciOutput, lsmod=lsmodOutput))
+        elif hostToInitialize.network.fastInterface() is None:
+            testResult.addCheck('net', 'init fast net ', False, "Link is not connected on Mellanox %(ethtool)s"
+                                % dict(ethtool=ethtoolResult))
+        else:
+            testResult.addCheck('net', 'init fast net ', False, "Unknown problem lspci %(lspci)s lsmod %(lsmod)s  %(ethtool)s"
+                                % dict(lspci=lspciOutput, lsmod=lsmodOutput, ethtool=ethtoolResult))
+        return False
+    try:
         hostToInitialize.network.addTaggedDevices(vtags)
         testResult.addCheck('net', 'init fast net', True)
         return True
     except:
-        testResult.addCheck('net', 'init fast net', False, traceback.format_exc())
+        logging.exception("Failed to Add vtags")
+        ifcfgOutput = hostToInitialize.network.ifconfig()
+        testResult.addCheck('net', 'init fast net', False, "Failed to add Vports ifcfg %(ifcfg)s" % dict(ifcfg=ifcfgOutput))
         return False
 
 
@@ -107,6 +127,7 @@ with open(args.rackYaml) as f:
 vtags = args.vlan
 label = subprocess.check_output(["solvent", "printlabel", "--thisProject", "--product=rootfs"]).strip()
 masterHost = allocateMasterHost(args.rackattackUser, label)
+masterHost.network.initialize()
 masterHost.network.addTaggedDevices(vtags)
 
 targetNodes = [n for n in rackYaml['HOSTS'] if n['id'] in args.targetNode]

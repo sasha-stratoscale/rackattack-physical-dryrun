@@ -19,10 +19,13 @@ NETMASK=%(mask)s"""
 class Network(object):
 
     def __init__(self, host):
-        logging.info("Initializing fast network on host %(host)s", dict(host=host.name))
         self._host = host
-        self._initMellanoxDevice()
+        self._mellanixPCIId = None
         self.networks = dict()
+
+    def initialize(self):
+        logging.info("Initializing fast network on host %(host)s", dict(host=self._host.name))
+        self._initMellanoxDevice()
         self._configureFastNetwork()
 
     def addTaggedDevice(self, vport, inetAddr):
@@ -45,7 +48,7 @@ class Network(object):
 
     def _configureFastNetwork(self):
         try:
-            privateInterface = waitforpredicate.WaitForPredicate(timeout=40, interval=3).waitAndReturn(self._fastInterface)
+            privateInterface = waitforpredicate.WaitForPredicate(timeout=40, interval=3).waitAndReturn(self.fastInterface)
         except:
             interfaces = self._host.seed.runCallable(seednetwork.interfaces)[0]
             logging.exception("Failed to aquire fast interface on host %(host)s existing %(interfaces)s",
@@ -77,6 +80,7 @@ class Network(object):
         self._host.kernel.modprobe('mlx4_core', 'port_type_array=2,2')
         self._host.kernel.modprobe('mlx4_en')
         deviceName = waitforpredicate.WaitForPredicate(timeout=30, interval=3).waitAndReturn(self._mellanoxPCICardID)
+        self._mellanixPCIId = deviceName
         self._host.kernel.modprobe('8021q')
         self._host.ssh.run.script("/bin/echo eth > /sys/bus/pci/devices/0000:%(deviceName)s/mlx4_port1"
                                   % dict(deviceName=deviceName))
@@ -84,10 +88,19 @@ class Network(object):
         self._host.ssh.run.script("/bin/echo eth > /sys/bus/pci/devices/0000:%(deviceName)s/mlx4_port2 || true"
                                   % dict(deviceName=deviceName))
 
-    def _fastInterface(self):
+    def mellanoxPCIId(self):
+        return self._mellanixPCIId
+
+    def fastInterface(self):
         interfaces = self._host.seed.runCallable(seednetwork.interfaces)[0]
         if len(interfaces['fast']) > 0:
             return interfaces['fast'][0]
         return None
+
+    def ethtool(self):
+        return self._host.seed.runCallable(seednetwork.ethtool)[0]
+
+    def ifconfig(self):
+        self._host.ssh.run.script("ifconfig -a -v")
 
 plugins.register('network', Network)

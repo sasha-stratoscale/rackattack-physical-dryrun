@@ -30,6 +30,11 @@ def interfaces():
     return nicsBySpeed
 
 
+def ethtool():
+    return {nic: _exec('ethtool %s' % nic) for nic in netifaces.interfaces()
+            if nic.startswith('e') or nic.startswith('p')}
+
+
 def myIP():
     s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     try:
