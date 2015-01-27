@@ -97,10 +97,10 @@ def _initializeFastNetworkOnHost(hostToInitialize, vtags, testResult):
                                 % dict(lspci=lspciOutput, lsmod=lsmodOutput))
         elif hostToInitialize.network.fastInterface() is None:
             testResult.addCheck('net', 'init fast net ', False, "Link is not connected on Mellanox %(ethtool)s"
-                                % dict(ethtool=ethtoolResult))
+                                % dict(ethtool=pprint.PrettyPrinter(indent=4).pformat(ethtoolResult)))
         else:
             testResult.addCheck('net', 'init fast net ', False, "Unknown problem lspci %(lspci)s lsmod %(lsmod)s  %(ethtool)s"
-                                % dict(lspci=lspciOutput, lsmod=lsmodOutput, ethtool=ethtoolResult))
+                                % dict(lspci=lspciOutput, lsmod=lsmodOutput, ethtool=pprint.PrettyPrinter(indent=4).pformat(ethtoolResult)))
         return False
     try:
         hostToInitialize.network.addTaggedDevices(vtags)
