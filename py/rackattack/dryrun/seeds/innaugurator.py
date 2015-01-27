@@ -134,12 +134,17 @@ def innaugurate(osmosisServerIP, rootfsLabel, nodesToInnagurate):
         ipmiInstance.powerCycle()
 
     logging.info("Waiting for inaugurator to check in")
-    remainingNodes = checkinWaiters.waitAll(timeout=6 * 60)
-    logging.error("Failed to checkin nodes %(nodes)s", dict(nodes=remainingNodes))
-    remainingNodes = doneWaiters.waitAll(timeout=7 * 60)
-    logging.error("Failed to finish nodes %(nodes)s", dict(nodes=remainingNodes))
+    failedNodesList = []
+    failedToCheckinNodes = checkinWaiters.waitAll(timeout=10 * 60)
+    logging.error("Failed to checkin nodes %(nodes)s", dict(nodes=failedToCheckinNodes))
+    for nodeNotToWaitDone in failedToCheckinNodes:
+        doneWaiters.notifyOne(nodeNotToWaitDone)
+    notDoneNodes = doneWaiters.waitAll(timeout=10 * 60)
+    failedNodesList.extend(failedToCheckinNodes)
+    failedNodesList.extend(notDoneNodes)
+    logging.error("Failed to finish nodes %(nodes)s", dict(nodes=notDoneNodes))
 
-    nodesToWaitForIp = [node for node in nodesToInnagurate if node not in remainingNodes]
+    nodesToWaitForIp = [node for node in nodesToInnagurate if node not in notDoneNodes]
     # Now wait for all servers to obtain an IP
     for nodeToInnaugurate in nodesToWaitForIp:
         try:
@@ -147,8 +152,8 @@ def innaugurate(osmosisServerIP, rootfsLabel, nodesToInnagurate):
         except:
             logging.exception("Failed to wait for active ssh connection on %(node)s",
                               dict(node=nodesToInnagurate['hostID']))
-            remainingNodes.append(nodeToInnaugurate)
+            failedNodesList.append(nodeToInnaugurate)
 
     failedNodes = {node['hostID']: open(solReaders[node['macAddress']].serialLogFilename()).read()
-                   for node in remainingNodes}
+                   for node in failedNodesList}
     return failedNodes
