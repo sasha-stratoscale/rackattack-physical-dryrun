@@ -130,6 +130,7 @@ def innaugurate(osmosisServerIP, rootfsLabel, nodesToInnagurate):
         ipmiInstance = ipmi.IPMI(nodeToInnaugurate['ipmiHost'],
                                  nodeToInnaugurate['ipmiUsername'],
                                  nodeToInnaugurate['ipmiPassword'])
+        ipmiInstance.forceBootFrom('pxe')
         ipmiInstance.powerCycle()
 
     logging.info("Waiting for inaugurator to check in")
