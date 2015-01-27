@@ -73,8 +73,17 @@ def _allocateTestNodes(masterHost, hostsToInnagurate):
 
 
 def printServerResults(results):
+    passedServers = [result for result in results if result.passed()]
+    failedServers = [result for result in result if not result.passed()]
+    print "TOTALLY %d PASSED %d FAILED" % (len(passedServers), len(failedServers))
+
+    print "*********************FAILED SERVERS*******************************"
     pp = pprint.PrettyPrinter(indent=4)
-    pp.pprint(results)
+    for server in failedServers:
+        pp.pprint("%(name) - %(summary)s" % dict(name=server['name'], summary=server['summary']))
+    print "*********************FAILED SERVERS DETAILS*******************************"
+    pp.pprint(failedServers)
+    print "*********************FAILED SERVERS DETAILS*******************************"
 
 
 def printHostsThatFailedInnaguration(failedHosts):
@@ -165,9 +174,9 @@ try:
         healthchecher.checkServers(masterHost, hostsToRunCheckOnMap, vtags)
     exitCode = 0 if len([testResult for testResult in testResults if not testResult.passed()]) == 0 else -1
 except:
-    printServerResults(testResults)
     logging.exception("Failed running test script")
 finally:
+    printServerResults(testResults)
     if args.debug:
         import ipdb
         ipdb.set_trace()

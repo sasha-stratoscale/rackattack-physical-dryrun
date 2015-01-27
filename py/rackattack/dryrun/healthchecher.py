@@ -4,6 +4,7 @@ from strato.common.multithreading import concurrently
 import pprint
 import servertestresult
 import threading
+import sys
 
 
 def _verifyVmxEnabledByBios(host, resultObject):
@@ -40,48 +41,45 @@ def _checkDisk(hostToCheck, resultObject):
 
 
 def _pingScript(ip, deviceName):
-    return "ping -c 5 %(ip)s -I %(device)s" % dict(ip=ip, device=deviceName)
+    return "ping -c 2 %(ip)s -I %(device)s" % dict(ip=ip, device=deviceName)
 
 
 def _runPing(srcHost, dstHost, netName, testResult, lock):
     ipDst = dstHost.network.networks[netName]['ip']
     srcDevice = srcHost.network.networks[netName]['device']
-    logging.info("Pinging from host %(srchost)s to %(dstHost)s to ip %(ip)s from device %(srcDevice)s", dict(
-        srchost=srcHost.name, dstHost=dstHost.name, ip=ipDst, srcDevice=srcDevice))
     log = ''
-    result = True
     pingScript = _pingScript(ipDst, srcDevice)
     try:
         srcHost.ssh.run.script(pingScript)
-    except:
-        result = False
-        log = "Failed pinging from host %(srchost)s to %(dstHost)s to ip %(ip)s" % dict(
-            srchost=srcHost.name, dstHost=dstHost.name, ip=ipDst)
-        logging.exception(log)
         lock.acquire()
         testResult.addCheck('net', 'ping on %(netName)s from %(src)s to %(dest)s "%(script)s"' %
                             dict(netName=netName, src=srcHost.name, dest=dstHost.name, script=pingScript),
-                            result, log)
+                            True, '', (netName, srcHost.name, dstHost.name))
+        lock.release()
+    except:
+        log = "Failed pinging from host %(srchost)s to %(dstHost)s to ip %(ip)s" % dict(
+            srchost=srcHost.name, dstHost=dstHost.name, ip=ipDst)
+        lock.acquire()
+        testResult.addCheck('net', 'ping on %(netName)s from %(src)s to %(dest)s "%(script)s" exception %(exception)s' %
+                            dict(netName=netName, src=srcHost.name, dest=dstHost.name, script=pingScript, exception=sys.exc_info()[1].message),
+                            False, log, (netName, srcHost.name, dstHost.name))
         lock.release()
 
 
 def _checkNetwork(node1, node2, vlanTags, testResult, lock):
     for netName in ['untaged'] + vlanTags:
-        logging.info("Checking '%(network)s' network between %(node1)s and %(node2)s",
-                     dict(network=str(netName), node1=node1.name, node2=node2.name))
         _runPing(node1, node2, netName, testResult, lock)
         _runPing(node2, node1, netName, testResult, lock)
 
 
 def checkServer(serverToCheck, serversToCheckNetwork, testResult, vlanTags):
+    logging.info("Going to check %(server)s", dict(server=serverToCheck.name))
     _verifyVirtualizationEnabled(serverToCheck, testResult)
     _checkDisk(serverToCheck, testResult)
     lock = threading.Lock()
     jobs = {server.name: (_checkNetwork, server, serverToCheck, vlanTags, testResult, lock)
             for server in serversToCheckNetwork}
-    concurrently.run(jobs, numberOfThreads=10)
-    logging.info('Checking server %(server)s done result %(summary)s',
-                 dict(server=serverToCheck.name, summary=testResult.summary()))
+    concurrently.run(jobs, numberOfThreads=30)
     return testResult
 
 
@@ -89,8 +87,8 @@ def _partnerServer(masterHost, serversToCheck, serverToCheck):
     return [masterHost] + [server for server in serversToCheck if server is not serverToCheck]
 
 
-def checkServers(masterHost, hostsResultsMap, vlanTags):
-    serversToCheck = hostsResultsMap.keys()
-    jobs = {server.name: (checkServer, server, _partnerServer(masterHost, serversToCheck, server), testResult, vlanTags)
-            for server, testResult in hostsResultsMap.items()}
+def checkServers(masterHost, hostsToProced, vlanTags):
+    allHosts = [host['host'] for host in hostsToProced]
+    jobs = {host['name']: (checkServer, host['host'], _partnerServer(masterHost, allHosts, host['host']), host['result'], vlanTags)
+            for host in hostsToProced}
     concurrently.run(jobs, numberOfThreads=10)
