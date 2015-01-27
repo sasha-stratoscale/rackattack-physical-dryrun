@@ -79,7 +79,7 @@ def checkServer(serverToCheck, serversToCheckNetwork, testResult, vlanTags):
     lock = threading.Lock()
     jobs = {server.name: (_checkNetwork, server, serverToCheck, vlanTags, testResult, lock)
             for server in serversToCheckNetwork}
-    concurrently.run(jobs)
+    concurrently.run(jobs, numberOfThreads=10)
     logging.info('Checking server %(server)s done result %(summary)s',
                  dict(server=serverToCheck.name, summary=testResult.summary()))
     return testResult
@@ -93,4 +93,4 @@ def checkServers(masterHost, hostsResultsMap, vlanTags):
     serversToCheck = hostsResultsMap.keys()
     jobs = {server.name: (checkServer, server, _partnerServer(masterHost, serversToCheck, server), testResult, vlanTags)
             for server, testResult in hostsResultsMap.items()}
-    concurrently.run(jobs)
+    concurrently.run(jobs, numberOfThreads=10)
