@@ -133,15 +133,16 @@ def _initializeFastNetworkOnTestHosts(hostsMap, vtags):
 with open(args.rackYaml) as f:
     rackYaml = yaml.load(f)
 
+targetNodes = [n for n in rackYaml['HOSTS'] if n['id'] in args.targetNode]
+assert len(targetNodes) == len(args.ipAddress), "Amount of target nodes must be the same as IP`s %d != %d" % (len(targetNodes), len(args.ipAddress))
+
 vtags = args.vlan
 label = subprocess.check_output(["solvent", "printlabel", "--thisProject", "--product=rootfs"]).strip()
 masterHost = allocateMasterHost(args.rackattackUser, label)
 masterHost.network.initialize()
 masterHost.network.addTaggedDevices(vtags)
-
-targetNodes = [n for n in rackYaml['HOSTS'] if n['id'] in args.targetNode]
 hostsToInnagurate = []
-assert len(targetNodes) == len(args.ipAddress), "Amount of target nodes must be the same as IP`s"
+
 for targetNode, ipAddress in zip(targetNodes, args.ipAddress):
     ipmiHost = socket.gethostbyname(targetNode['ipmiLogin']['hostname'])
     ipmiUsername = targetNode['ipmiLogin']['username']
