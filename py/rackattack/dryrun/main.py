@@ -74,7 +74,7 @@ def _allocateTestNodes(masterHost, hostsToInnagurate):
 
 def printServerResults(results):
     passedServers = [result for result in results if result.passed()]
-    failedServers = [result for result in result if not result.passed()]
+    failedServers = [result for result in results if not result.passed()]
     print "TOTALLY %d PASSED %d FAILED" % (len(passedServers), len(failedServers))
 
     print "*********************FAILED SERVERS*******************************"
