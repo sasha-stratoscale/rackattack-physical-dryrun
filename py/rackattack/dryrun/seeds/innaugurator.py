@@ -103,8 +103,8 @@ def innaugurate(osmosisServerIP, rootfsLabel, nodesToInnagurate):
         tftpboot=tftpbootInstance,
         serverIP=network.myIP(),
         netmask=network.netmask(),
-        firstIP=network.myIP(),
-        lastIP=network.myIP(),
+        firstIP=nodesToInnagurate[0]['ipAddress'],
+        lastIP=nodesToInnagurate[0]['ipAddress'],
         gateway=network.gateway(),
         nameserver=network.myIP())
 
