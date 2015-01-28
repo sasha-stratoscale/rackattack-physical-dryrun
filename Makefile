@@ -39,6 +39,7 @@ $(ROOTFS): build/smartctl
 	sudo chroot $(ROOTFS).tmp easy_install /tmp/inaugurator-1.0-py2.7.egg
 	sudo chroot $(ROOTFS).tmp yum install --assumeyes $(YUMCACHE)/mirrors.kernel.org/fedora-epel/7/x86_64/m/msr-tools-1.3-1.el7.x86_64.rpm
 	sudo chroot $(ROOTFS).tmp yum install --assumeyes $(YUMCACHE)/mirrors.kernel.org/fedora-epel/7/x86_64/v/vconfig-1.9-16.el7.x86_64.rpm
+	sudo chroot $(ROOTFS).tmp yum install --assumeyes $(YUMCACHE)/mirrors.kernel.org/fedora-epel/7/x86_64/p/pigz-2.3.1-1.el7.x86_64.rpm
 	sudo chroot $(ROOTFS).tmp pip install rpdb
 	sudo chroot $(ROOTFS).tmp pip install ipaddr
 	sudo sh -c "echo 'MaxSessions 300' >> $(ROOTFS).tmp/etc/ssh/sshd_config"

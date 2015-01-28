@@ -1,7 +1,11 @@
 import logging
 import socket
 import functools
-logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+import shutil
+import datetime
+import os
+from strato.common.log import configurelogging
+configurelogging.configureLogging('innaurugrator')
 import argparse
 import threading
 from rackattack.common import tftpboot
@@ -12,6 +16,9 @@ from rackattack.physical import serialoverlan
 from rackattack.common import globallock
 import time
 import network
+from strato.common.multithreading import concurrently
+from rackattack.physical import config
+config.SERIAL_LOGS_DIRECTORY = '/var/log/rackattack'
 
 
 class Waiter:
@@ -55,18 +62,18 @@ def _rawTCPConnect(tcpEndpoint):
 
 
 def inaugurateCheckIn(inaugurateInstance, innaguratedNode, rootfsLabel, notifier):
-    logging.info("Inaugurator checked in")
+    logging.info("Inaugurator checked in for node %(ip)s", dict(ip=innaguratedNode['ipAddress']))
     inaugurateInstance.provideLabel(ipAddress=innaguratedNode['ipAddress'], label=rootfsLabel)
     notifier.notifyOne(innaguratedNode)
 
 
 def inaugurateDone(innaguratedNode, notifier):
-    logging.info("Inaugurator checked in")
+    logging.info("Inaugurator Done for node %(ip)s", dict(ip=innaguratedNode['ipAddress']))
     notifier.notifyOne(innaguratedNode)
 
 
 def _prepareForInnauguration(dnsmasqInstance, inaugurateInstance, tftpbootInstance,
-                             nodesToInnagurate, rootfsLabel, checkinWaiter, doneWaiter):
+                             nodesToInnagurate, rootfsLabel, checkinWaiter, doneWaiter, noClearDisk):
     with globallock.lock():
         for nodeToInnaugurate in nodesToInnagurate:
             dnsmasqInstance.add(nodeToInnaugurate['macAddress'], nodeToInnaugurate['ipAddress'])
@@ -83,10 +90,34 @@ def _prepareForInnauguration(dnsmasqInstance, inaugurateInstance, tftpbootInstan
                                         doneCallback=doneCallback)
             tftpbootInstance.configureForInaugurator(nodeToInnaugurate['macAddress'],
                                                      nodeToInnaugurate['ipAddress'],
-                                                     clearDisk=True)
+                                                     clearDisk=not noClearDisk)
 
 
-def innaugurate(osmosisServerIP, rootfsLabel, nodesToInnagurate):
+def _waitServersToInitializeNetwork(nodesToWaitForIp):
+    def waitServerToInitNetwork(server):
+        try:
+            waitForTCPServer(server['ipAddress'], 22)
+            return True
+        except:
+            logging.exception("Failed to wait for active ssh connection on %(node)s",
+                              dict(node=server['hostID']))
+            return False
+
+    jobs = {host['hostID']: (waitServerToInitNetwork, host) for host in nodesToWaitForIp}
+    results = concurrently.run(jobs)
+
+    return [node for node in nodesToWaitForIp if not results[node['hostID']]]
+
+
+def _powerCycleServer(nodeToInnaugurate):
+    ipmiInstance = ipmi.IPMI(nodeToInnaugurate['ipmiHost'],
+                             nodeToInnaugurate['ipmiUsername'],
+                             nodeToInnaugurate['ipmiPassword'])
+    ipmiInstance.forceBootFrom('pxe')
+    ipmiInstance.powerCycle()
+
+
+def innaugurate(osmosisServerIP, rootfsLabel, nodesToInnagurate, noClearDisk):
     network.dropFirewall()
     logging.info("MyIP: %(ip)s", dict(ip=network.myIP()))
 
@@ -103,8 +134,7 @@ def innaugurate(osmosisServerIP, rootfsLabel, nodesToInnagurate):
         tftpboot=tftpbootInstance,
         serverIP=network.myIP(),
         netmask=network.netmask(),
-        firstIP=nodesToInnagurate[0]['ipAddress'],
-        lastIP=nodesToInnagurate[0]['ipAddress'],
+        ipAddress=nodesToInnagurate[0]['ipAddress'],
         gateway=network.gateway(),
         nameserver=network.myIP())
 
@@ -117,7 +147,7 @@ def innaugurate(osmosisServerIP, rootfsLabel, nodesToInnagurate):
     doneWaiters = Waiter(nodesToInnagurate)
     _prepareForInnauguration(dnsmasqInstance, inaugurateInstance,
                              tftpbootInstance, nodesToInnagurate, rootfsLabel,
-                             checkinWaiters, doneWaiters)
+                             checkinWaiters, doneWaiters, noClearDisk)
     solReaders = dict()
     for nodeToInnaugurate in nodesToInnagurate:
         sol = serialoverlan.SerialOverLan(nodeToInnaugurate['ipmiHost'],
@@ -126,34 +156,25 @@ def innaugurate(osmosisServerIP, rootfsLabel, nodesToInnagurate):
                                           nodeToInnaugurate['hostID'])
         solReaders[nodeToInnaugurate['macAddress']] = sol
 
-    for nodeToInnaugurate in nodesToInnagurate:
-        ipmiInstance = ipmi.IPMI(nodeToInnaugurate['ipmiHost'],
-                                 nodeToInnaugurate['ipmiUsername'],
-                                 nodeToInnaugurate['ipmiPassword'])
-        ipmiInstance.forceBootFrom('pxe')
-        ipmiInstance.powerCycle()
+    jobs = {nodeToInnaugurate['ipmiHost']: (_powerCycleServer, nodeToInnaugurate) for nodeToInnaugurate in nodesToInnagurate}
+    concurrently.run(jobs)
 
     logging.info("Waiting for inaugurator to check in")
     failedNodesList = []
     failedToCheckinNodes = checkinWaiters.waitAll(timeout=10 * 60)
+    nodesToInnagurate = [node for node in nodesToInnagurate if node not in failedToCheckinNodes]
     logging.error("Failed to checkin nodes %(nodes)s", dict(nodes=failedToCheckinNodes))
     for nodeNotToWaitDone in failedToCheckinNodes:
         doneWaiters.notifyOne(nodeNotToWaitDone)
-    notDoneNodes = doneWaiters.waitAll(timeout=10 * 60)
+    notDoneNodes = doneWaiters.waitAll(timeout=7 * 60)
+    nodesToInnagurate = [node for node in nodesToInnagurate if node not in notDoneNodes]
     failedNodesList.extend(failedToCheckinNodes)
     failedNodesList.extend(notDoneNodes)
     logging.error("Failed to finish nodes %(nodes)s", dict(nodes=notDoneNodes))
 
     nodesToWaitForIp = [node for node in nodesToInnagurate if node not in notDoneNodes]
-    # Now wait for all servers to obtain an IP
-    for nodeToInnaugurate in nodesToWaitForIp:
-        try:
-            waitForTCPServer(nodeToInnaugurate['ipAddress'], 22)
-        except:
-            logging.exception("Failed to wait for active ssh connection on %(node)s",
-                              dict(node=nodesToInnagurate['hostID']))
-            failedNodesList.append(nodeToInnaugurate)
-
+    failedNodesList.extend(_waitServersToInitializeNetwork(nodesToWaitForIp))
     failedNodes = {node['hostID']: open(solReaders[node['macAddress']].serialLogFilename()).read()
                    for node in failedNodesList}
+    shutil.copy(dnsmasqInstance._logFile.name, '/var/log/rackattack/')
     return failedNodes
