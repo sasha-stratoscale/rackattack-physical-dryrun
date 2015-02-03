@@ -16,7 +16,7 @@ def _verifyVmxEnabledByBios(host, resultObject):
     result = True
     log = ''
     if(regvalue & VMX_ENABLED) != VMX_ENABLED:
-        log = "VMX is not enabled in bios register val %(regvalue)" % dict(regvalue=hex(regvalue))
+        log = "VMX is not enabled in bios register val %(regvalue)x" % dict(regvalue=int(regvalue))
         result = False
     resultObject.addCheck('virt', 'virtualization bios', result, log)
 
