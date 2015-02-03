@@ -35,7 +35,12 @@ class Kernel:
 
     def removeKernelModule(self, module):
         TIME_WAIT_FOR_RMMOD_TO_SUCCEEDD = 10
-        waittonotthrow.WaitToNotThrow(timeout=TIME_WAIT_FOR_RMMOD_TO_SUCCEEDD).wait(lambda: self._host.ssh.run.script("rmmod %s" % module))
+        try:
+            waittonotthrow.WaitToNotThrow(timeout=TIME_WAIT_FOR_RMMOD_TO_SUCCEEDD).wait(lambda: self._host.ssh.run.script("rmmod %s" % module))
+        except:
+            logging.exception("Failed to remove module %(module)s lsmod=%(lsmod)s",
+                              dict(module=module, lsmod=self._host.ssh.run.script("lsmod")))
+            raise
 
     def isModuleLoaded(self, module):
         output = self._host.ssh.run.script("lsmod")
