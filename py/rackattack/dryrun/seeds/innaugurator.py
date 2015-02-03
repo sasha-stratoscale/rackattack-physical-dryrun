@@ -125,7 +125,7 @@ def innaugurate(osmosisServerIP, rootfsLabel, nodesToInnagurate, noClearDisk):
         netmask=network.netmask(),
         inauguratorServerIP=network.myIP(),
         osmosisServerIP=osmosisServerIP,
-        inauguratorGatewayIP=network.myIP(),
+        inauguratorGatewayIP=network.gateway(),
         rootPassword="dryrun",
         withLocalObjectStore=True)
     dnsmasq.DNSMasq.eraseLeasesFile()
@@ -166,7 +166,7 @@ def innaugurate(osmosisServerIP, rootfsLabel, nodesToInnagurate, noClearDisk):
     logging.error("Failed to checkin nodes %(nodes)s", dict(nodes=failedToCheckinNodes))
     for nodeNotToWaitDone in failedToCheckinNodes:
         doneWaiters.notifyOne(nodeNotToWaitDone)
-    notDoneNodes = doneWaiters.waitAll(timeout=7 * 60)
+    notDoneNodes = doneWaiters.waitAll(timeout=15 * 60)
     nodesToInnagurate = [node for node in nodesToInnagurate if node not in notDoneNodes]
     failedNodesList.extend(failedToCheckinNodes)
     failedNodesList.extend(notDoneNodes)
