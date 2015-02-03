@@ -30,7 +30,7 @@ $(ROOTFS): build/smartctl
 	-sudo mv $(ROOTFS) $(ROOTFS).tmp
 	echo "Bringing source"
 	-mkdir $(@D)
-	sudo -E solvent bring --repositoryBasename=rootfs-basic --product=rootfs --destination=$(ROOTFS).tmp
+	sudo -E solvent bring --repositoryBasename=rootfs-centos7-basic --product=rootfs --destination=$(ROOTFS).tmp
 	sudo chroot $(ROOTFS).tmp yum install $(RPMS_TO_INSTALL) --assumeyes
 	sudo mkdir $(ROOTFS).tmp/usr/share/inaugurator
 	sudo cp ../inaugurator/build/inaugurator.thin.initrd.img ../inaugurator/build/inaugurator.vmlinuz $(ROOTFS).tmp/usr/share/inaugurator

@@ -1,5 +1,5 @@
 requirements:
-- hash: 2c065fef7b3323e4449a36e368486b61d2e25e4f
-  originURL: https://github.com/Stratoscale/rootfs-basic.git
+- hash: 0bdc94ee45ce920dd5454f06b7bdb8cb9607c32b
+  originURL: https://github.com/Stratoscale/rootfs-centos7-basic.git
 - hash: ec6af434552d852d7ad217402e5c7393102bb102
   originURL: https://github.com/Stratoscale/rootfs-build.git

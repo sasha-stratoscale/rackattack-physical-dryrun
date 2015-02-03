@@ -46,7 +46,7 @@ def allocateMasterHost(rackuser, label):
     client = clientfactory.factory()
     logging.info("Allocating master node")
     allocationInfo = api.AllocationInfo(user=rackuser, purpose="dryrun")
-    requirements = dict(master=api.Requirement(imageLabel=label, imageHint="rootfs-basic"))
+    requirements = dict(master=api.Requirement(imageLabel=label, imageHint="rootfs-centos7-basic"))
     allocation = client.allocate(requirements, allocationInfo)
     allocation.wait(timeout=5 * 60)
     logging.info("Allocation successful, waiting for ssh")
